@@ -1,136 +1,55 @@
-import random
-
-
-class AttackSkill:
-    def __init__(self, modifiers, damage_type, name):
+class GenericSkill:
+    def __init__(self, type_, attacker, name, modifiers=None):
+        self.type_ = type_
         self.modifiers = modifiers
-        self.damage_type = damage_type
+        self.attacker = attacker
+        self.target = None
         self.name = name
+        self.resulting_damage = None
 
-    def __repr__(self):
-        return "{}: {}".format(self.name, self.modifiers)
+    @property
+    def damage_type(self):
+        return self.type_
 
-    @staticmethod
-    def skill_modifiers():
+    @property
+    def damage(self):
         """
-        You absolutely need to write this for each skill differently
-        Should return iterable of skill modifiers
-        """
-        return None,
-
-    @staticmethod
-    def skill_type():
-        """
-        You absolutely need to write this for each skill differently
-        Should return type of skill
+        This needs to be changed for each skill
         """
         return None
 
-    def get_damage(self):
+    def set_target(self, target):
+        if self.target is None:
+            self.target = target
+
+    def store_damage(self, resulting_damage):
+        if self.resulting_damage is None:
+            self.resulting_damage = resulting_damage
+
+    def return_damage(self):
         """
-        You absolutely need to write this for each skill differently
-        Should return damage and damage_type
+        Returns damage in printable format
         """
-        return 0, "Normal"
-
-    def get_name(self):
-        return self.name
-
-    def get_on_hit_effect(self):
-        return None
+        return f"{self.attacker} dealt {self.resulting_damage} to {self.target} with {self.name}"  # noqa
 
 
-class MeleeAttack(AttackSkill):
-    def __init__(self, modifiers):
-        name = "Melee Attack"
-        damage_type = "Normal"
-        super().__init__(modifiers, damage_type, name)
+class Attack(GenericSkill):
+    def __init__(self, **kwargs):
+        kwargs['type_'] = 'physical'
+        kwargs['name'] = "Basic Attack"
+        super().__init__(**kwargs)
 
-    @staticmethod
-    def skill_modifiers():
-        return "MELEE_ATTACK",
-
-    @staticmethod
-    def skill_type():
-        return "Melee"
-
-    def get_damage(self):
-        return self.modifiers["MELEE_ATTACK"]() * random.uniform(0.95, 1.05), self.damage_type
+    @property
+    def damage(self):
+        return self.attacker.attack_damage
 
 
-class CriticalAttack(AttackSkill):
-    def __init__(self, modifiers):
-        name = "Melee Attack"
-        damage_type = "Normal"
-        super().__init__(modifiers, damage_type, name)
+class MagicMissile(GenericSkill):
+    def __init__(self, **kwargs):
+        kwargs['type_'] = 'magical'
+        kwargs['name'] = "Magic Missile"
+        super().__init__(**kwargs)
 
-    @staticmethod
-    def skill_modifiers():
-        return "MELEE_ATTACK", "CRITICAL_CHANCE"
-
-    @staticmethod
-    def skill_type():
-        return "Melee"
-
-    def get_damage(self):
-        if random.random() <= self.modifiers["CRITICAL_CHANCE"]():
-            return self.modifiers["MELEE_ATTACK"]() * random.uniform(0.95, 1.05), self.damage_type
-        else:
-            return self.modifiers["MELEE_ATTACK"]() * 2 * random.uniform(0.95, 1.05), "Critical"
-
-
-class LifeStealAttack(AttackSkill):
-    def __init__(self, modifiers):
-        name = "Melee Attack"
-        damage_type = "Normal"
-        super().__init__(modifiers, damage_type, name)
-
-    @staticmethod
-    def skill_modifiers():
-        return "MELEE_ATTACK",
-
-    @staticmethod
-    def skill_type():
-        return "Melee"
-
-    def get_damage(self):
-        return self.modifiers["MELEE_ATTACK"]() * random.uniform(0.95, 1.05), self.damage_type
-
-    def get_on_hit_effect(self):
-        return "Heal", 0.2
-
-
-class MagicFireball(AttackSkill):
-    def __init__(self, modifiers):
-        name = "Fireball"
-        damage_type = "Magic"
-        super().__init__(modifiers, damage_type, name)
-
-    @staticmethod
-    def skill_modifiers():
-        return "MAGIC_POWER",
-
-    @staticmethod
-    def skill_type():
-        return "Magic"
-
-    def get_damage(self):
-        return self.modifiers["MAGIC_POWER"]() * 5, self.damage_type
-
-
-class MagicLightningBolt(AttackSkill):
-    def __init__(self, modifiers):
-        name = "Lightning Bolt"
-        damage_type = "Magic"
-        super().__init__(modifiers, damage_type, name)
-
-    @staticmethod
-    def skill_modifiers():
-        return "MAGIC_POWER",
-
-    @staticmethod
-    def skill_type():
-        return "Magic"
-
-    def get_damage(self):
-        return self.modifiers["MAGIC_POWER"]() * 5 * random.uniform(0.8, 1.2), self.damage_type
+    @property
+    def damage(self):
+        return self.attacker.arcane * 20
