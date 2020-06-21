@@ -1,7 +1,7 @@
 import math
 
 from utils import SkillCooldown
-from skills import Attack, MagicMissile
+from skills import BasicAttack, MagicMissile, DoubleShot, CriticalStrike
 
 
 class Summon:
@@ -16,28 +16,32 @@ class Summon:
                           'armour': 1.5,
                           'arcane': 0.5,
                           'attack_type': 'melee',
-                          'skills': []}),
+                          'skills': []
+                          }),
 
         'S': ('Shooter', {'hp': 1,
                           'attack': 1.5,
                           'armour': 1.5,
                           'arcane': 0.5,
                           'attack_type': 'ranged',
-                          'skills': []}),
+                          'skills': [(DoubleShot, 4), ]
+                          }),
 
         'C': ('Caster', {'hp': 1,
                          'attack': 1,
                          'armour': 1,
-                         'arcane': 1.5,
+                         'arcane': 1,
                          'attack_type': 'ranged',
-                         'skills': [(MagicMissile, 5), ]}),
+                         'skills': [(MagicMissile, 5), ]
+                         }),
 
         'A': ('Assassin', {'hp': 1,
                            'attack': 1.5,
                            'armour': 1,
-                           'arcane': 1,
+                           'arcane': 0.75,
                            'attack_type': 'melee',
-                           'skills': []})
+                           'skills': [(CriticalStrike, 3)]
+                           })
     }
 
     RACE_LIBRARY = {
@@ -74,6 +78,10 @@ class Summon:
                                'magical': self.take_magical_damage,
                                'pure': self.take_pure_damage}
 
+        self.SKILLS_LIBRARY = {'modifier': {},
+                               'attack': {},
+                               'defense': {}}
+
         self.cls, class_mods = self.select_class(class_code)
         self.race, race_mods = self.select_race(race_code)
         self.level = 1
@@ -106,8 +114,8 @@ class Summon:
         else:
             self.current_exp = 0
 
-        self.basic_attack = {"attack": Attack,
-                             "modifiers": None}
+        self.basic_attack = {"attack": BasicAttack}
+
         self.skills = []
         if class_mods.get('skills'):
             for skill in class_mods.get('skills'):
@@ -141,11 +149,28 @@ class Summon:
         return stats
 
     def add_skill(self, skill, cooldown):
-        skill_handle = {
-            "skill": skill,
-            "cooldown": SkillCooldown(cooldown)
-        }
-        self.skills.append(skill_handle)
+        self.SKILLS_LIBRARY[skill.skill_type][skill] = SkillCooldown(cooldown)
+
+    def skill_available(self, skill):
+        """
+        Check if skill is available to use
+        """
+        return self.SKILLS_LIBRARY[skill.skill_type][skill].check_cooldown()
+
+    def select_attacks(self):
+        attacks = []
+        for skill in self.SKILLS_LIBRARY['attack']:
+            if self.skill_available(skill):
+                attacks.append(skill(skill_user=self))
+        # if no available skill was found, add basic attack
+        if not attacks:
+            attacks.append(self.get_basic_attack())
+        return attacks
+
+    def use_modifiers(self, attacks):
+        for modifier in self.SKILLS_LIBRARY['modifier']:
+            if self.skill_available(modifier):
+                modifier(skill_user=self).modify_skills(attacks=attacks)
 
     # Attacking and receiving damage
 
@@ -171,23 +196,15 @@ class Summon:
         attack.store_damage(damage_mechanism(attack.damage))
 
     def get_basic_attack(self):
-        basic_attack = self.basic_attack['attack'](
-            attacker=self,
-            modifiers=self.basic_attack['modifiers'],
-        )
+        basic_attack = self.basic_attack['attack'](skill_user=self)
         return basic_attack
 
-    def attack(self, target):
-        attack = self.get_basic_attack()
-
-        if self.skills:
-            for skill in self.skills:
-                if skill['cooldown'].check_cooldown():
-                    attack = skill['skill'](attacker=self)
-
-        attack.set_target(target)
-        target.receive_attack(attack)
-        return attack
+    def attack_target(self, target):
+        attacks = self.select_attacks()
+        self.use_modifiers(attacks)
+        for attack in attacks:
+            attack.set_target(target)
+        return attacks
 
     # Healing
 
